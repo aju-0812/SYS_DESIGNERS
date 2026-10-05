@@ -1,0 +1,186 @@
+<mxfile host="app.diagrams.net" modified="2026-10-05T15:45:00.000Z" agent="SALESTORM System Designer" version="21.0.0" type="device">
+  <diagram id="salestorm-flow" name="SALESTORM End-to-End Flow">
+    <mxGraphModel dx="1422" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- Header Banner -->
+        <mxCell id="header" value="SALESTORM - High-Scale E-Commerce Flash Sale System Architecture&#xa;Scenario: 10,000 Concurrent Customers Competing for 100 Flash Sale Stock Units" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1e293b;strokeColor=#334155;fontColor=#f8fafc;fontSize=16;fontStyle=1;align=center;" vertex="1" parent="1">
+          <mxGeometry x="40" y="30" width="1570" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Container: Client & Edge Tier -->
+        <mxCell id="box_edge" value="1. Client and Edge Ingestion Layer" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#94a3b8;fontColor=#0f172a;fontStyle=1;startSize=30;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="110" width="340" height="980" as="geometry" />
+        </mxCell>
+        
+        <mxCell id="users" value="[Clients] 10,000 Flash Sale Buyers&#xa;(Simultaneous Buy Now Traffic Spike)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eff6ff;strokeColor=#3b82f6;fontColor=#1e3a8a;fontStyle=1;" vertex="1" parent="box_edge">
+          <mxGeometry x="30" y="50" width="280" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cdn_waf" value="[Edge Security] Cloudflare CDN and WAF&#xa;- DDoS mitigation and bot rate shaping&#xa;- Static asset caching (HTML, JS, Images)&#xa;- TLS 1.3 Termination" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#22c55e;fontColor=#14532d;align=left;spacingLeft=15;" vertex="1" parent="box_edge">
+          <mxGeometry x="30" y="150" width="280" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="alb" value="[Load Balancer] AWS Application Load Balancer&#xa;- Round-robin traffic distribution&#xa;- Health check telemetry&#xa;- Dynamic auto-scaling targets" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#22c55e;fontColor=#14532d;align=left;spacingLeft=15;" vertex="1" parent="box_edge">
+          <mxGeometry x="30" y="270" width="280" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gateway" value="[Gateway] API Gateway (Kong / Spring Cloud)&#xa;- JWT Authentication and Authorization&#xa;- Token Bucket Rate Limiting (500 rps/IP)&#xa;- Request Idempotency Key Validation&#xa;- Distributed Tracing Header Injection" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#f59e0b;fontColor=#78350f;align=left;spacingLeft=15;" vertex="1" parent="box_edge">
+          <mxGeometry x="30" y="390" width="280" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Edge Connectors -->
+        <mxCell id="e_u_c" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#3b82f6;strokeWidth=2;" edge="1" parent="box_edge" source="users" target="cdn_waf">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_c_a" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#22c55e;strokeWidth=2;" edge="1" parent="box_edge" source="cdn_waf" target="alb">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_a_g" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#22c55e;strokeWidth=2;" edge="1" parent="box_edge" source="alb" target="gateway">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Container: Core Application Microservices -->
+        <mxCell id="box_services" value="2. Microservices Business and Concurrency Control Layer" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#94a3b8;fontColor=#0f172a;fontStyle=1;startSize=30;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="410" y="110" width="530" height="980" as="geometry" />
+        </mxCell>
+
+        <mxCell id="checkout_facade" value="[Service] Checkout Orchestration Service (Facade)&#xa;Coordinates: Cart Validation -> Stock Hold -> Payment -> Order Creation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#64748b;fontColor=#0f172a;fontStyle=1;" vertex="1" parent="box_services">
+          <mxGeometry x="30" y="50" width="470" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="inv_service" value="[Core Service] Inventory and Reservation Service (Critical Gate)&#xa;- Atomic Redis Lua and Optimistic DB Locking:&#xa;  UPDATE inventory SET available = available - 1, reserved = reserved + 1&#xa;  WHERE product_id = :id AND available >= 1;&#xa;- Enforces Exactly 100 Maximum Active Reservations&#xa;- Configures 5-Minute TTL Automatic Release on Incomplete Checkout" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef2f2;strokeColor=#ef4444;fontColor=#991b1b;align=left;spacingLeft=15;" vertex="1" parent="box_services">
+          <mxGeometry x="30" y="140" width="470" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="payment_service" value="[Core Service] Payment Service (Idempotent Gateway Integration)&#xa;- Strategy Pattern (UPI, Credit Card, Digital Wallets)&#xa;- Strict Idempotency Validation on 'Idempotency-Key'&#xa;- Circuit Breaker Protection against 3rd-Party Gateway Outages&#xa;- Auto-Reconciliation Polling for In-Flight Transactions" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#16a34a;fontColor=#14532d;align=left;spacingLeft=15;" vertex="1" parent="box_services">
+          <mxGeometry x="30" y="300" width="470" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="order_service" value="[Core Service] Order Management Service&#xa;- Order State Machine (CREATED -> PAYMENT_PENDING -> CONFIRMED)&#xa;- Transactional Outbox Pattern for Relational Event Consistency&#xa;- Asynchronous Event Emission to Message Broker" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eff6ff;strokeColor=#2563eb;fontColor=#1e3a8a;align=left;spacingLeft=15;" vertex="1" parent="box_services">
+          <mxGeometry x="30" y="450" width="470" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="product_cart_service" value="[Catalog] Product, Category and Cart Services&#xa;- High-Throughput Product Catalog Metadata Retrieval&#xa;- Shopping Basket State with In-Memory Redis Session Backing" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fdf4ff;strokeColor=#c084fc;fontColor=#581c87;align=left;spacingLeft=15;" vertex="1" parent="box_services">
+          <mxGeometry x="30" y="580" width="470" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="workers" value="[Background Workers] Asynchronous Event Consumers&#xa;- Shipment Worker: Assigns tracking numbers and communicates with 3PL APIs&#xa;- Notification Worker: Dispatches confirmation emails, SMS, and push updates&#xa;- Expiration Sweeper Worker: Periodically reclaims unpaid reservations" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fffbeb;strokeColor=#d97706;fontColor=#78350f;align=left;spacingLeft=15;" vertex="1" parent="box_services">
+          <mxGeometry x="30" y="700" width="470" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- Connectors within Services -->
+        <mxCell id="e_facade_inv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#ef4444;strokeWidth=2;" edge="1" parent="box_services" source="checkout_facade" target="inv_service">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_inv_pay" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#16a34a;strokeWidth=2;" edge="1" parent="box_services" source="inv_service" target="payment_service">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_pay_order" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2563eb;strokeWidth=2;" edge="1" parent="box_services" source="payment_service" target="order_service">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Container: Storage & Messaging Tier -->
+        <mxCell id="box_data" value="3. Storage, Cache and Messaging Tier" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#94a3b8;fontColor=#0f172a;fontStyle=1;startSize=30;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="970" y="110" width="320" height="980" as="geometry" />
+        </mxCell>
+
+        <mxCell id="redis_cluster" value="[Cache] Redis 7.0 In-Memory Cluster&#xa;- Flash Sale Stock Atomic Counter (Lua DECR)&#xa;- Idempotency Deduplication Key Store&#xa;- Active Reservation 5-Minute TTL Keys&#xa;- High-Performance Catalog Read Cache" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#fee2e2;strokeColor=#dc2626;fontColor=#7f1d1d;align=left;spacingLeft=15;" vertex="1" parent="box_data">
+          <mxGeometry x="25" y="60" width="270" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="postgres_db" value="[ACID Database] PostgreSQL 16 Primary DB&#xa;- Master: Authoritative Transaction Store&#xa;  (Row-level locks and optimistic versioning)&#xa;- Read Replicas: Catalog and Customer Query Scale&#xa;- Schemas: Customer, Inventory, Reservation,&#xa;  Order, Payment, Shipment, Notification" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#dbeafe;strokeColor=#1d4ed8;fontColor=#1e3a8a;align=left;spacingLeft=15;" vertex="1" parent="box_data">
+          <mxGeometry x="25" y="240" width="270" height="150" as="geometry" />
+        </mxCell>
+
+        <mxCell id="kafka_mq" value="[Message Broker] Apache Kafka / RabbitMQ&#xa;- Partitioned Topics:&#xa;  * order.confirmed&#xa;  * payment.succeeded / failed&#xa;  * reservation.expired&#xa;- Dead Letter Queue (DLQ) for Error Quarantine" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#fef3c7;strokeColor=#b45309;fontColor=#78350f;align=left;spacingLeft=15;" vertex="1" parent="box_data">
+          <mxGeometry x="25" y="460" width="270" height="130" as="geometry" />
+        </mxCell>
+
+        <!-- Container: External & Observability -->
+        <mxCell id="box_ext" value="4. External Providers and Telemetry" style="swimlane;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#94a3b8;fontColor=#0f172a;fontStyle=1;startSize=30;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="1320" y="110" width="290" height="980" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ext_payment" value="[External API] Payment Gateways&#xa;- Razorpay / Stripe / Bank UPI&#xa;- Webhook Callbacks and Query APIs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#475569;fontColor=#0f172a;align=center;" vertex="1" parent="box_ext">
+          <mxGeometry x="20" y="60" width="250" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ext_shipping" value="[External API] 3PL Courier APIs&#xa;- DHL / FedEx / Shiprocket / Bluedart&#xa;- Waybill creation and GPS Tracking" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#475569;fontColor=#0f172a;align=center;" vertex="1" parent="box_ext">
+          <mxGeometry x="20" y="180" width="250" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ext_notif" value="[External API] Notification Providers&#xa;- SendGrid / Twilio / Firebase FCM&#xa;- Transactional SMS and Email Dispatch" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#475569;fontColor=#0f172a;align=center;" vertex="1" parent="box_ext">
+          <mxGeometry x="20" y="300" width="250" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="telemetry" value="[Telemetry] SRE Observability Stack&#xa;- Prometheus and Grafana (Metrics)&#xa;- OpenTelemetry and Jaeger (Tracing)&#xa;- Centralized Structured Logs&#xa;- PagerDuty Alert Engine" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#15803d;fontColor=#14532d;align=left;spacingLeft=15;" vertex="1" parent="box_ext">
+          <mxGeometry x="20" y="440" width="250" height="120" as="geometry" />
+        </mxCell>
+
+        <!-- Cross Tier Flow Connectors -->
+        <mxCell id="f1" value="HTTPS Calls" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;fontColor=#0f172a;" edge="1" parent="1" source="gateway" target="checkout_facade">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="f2" value="Atomic Lua DECR" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#dc2626;strokeWidth=2;fontColor=#7f1d1d;" edge="1" parent="1" source="inv_service" target="redis_cluster">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="f3" value="ACID Write / Lock" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#1d4ed8;strokeWidth=2;fontColor=#1e3a8a;" edge="1" parent="1" source="inv_service" target="postgres_db">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="930" y="320" />
+              <mxPoint x="930" y="410" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="f4" value="Process / Idempotent" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#16a34a;strokeWidth=2;fontColor=#14532d;" edge="1" parent="1" source="payment_service" target="ext_payment">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="950" y="430" />
+              <mxPoint x="950" y="205" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="f5" value="Publish Events" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#b45309;strokeWidth=2;fontColor=#78350f;" edge="1" parent="1" source="order_service" target="kafka_mq">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="f6" value="Consume Events" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#d97706;strokeWidth=2;dashed=1;fontColor=#78350f;" edge="1" parent="1" source="kafka_mq" target="workers">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1000" y="860" />
+              <mxPoint x="880" y="860" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="f7" value="Dispatch 3PL" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="workers" target="ext_shipping">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="910" y="890" />
+              <mxPoint x="1350" y="890" />
+              <mxPoint x="1350" y="325" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="f8" value="Send SMS / Email" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="workers" target="ext_notif">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="930" y="910" />
+              <mxPoint x="1380" y="910" />
+              <mxPoint x="1380" y="445" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
